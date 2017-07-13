@@ -1,5 +1,5 @@
 ﻿$inputCSV = "Parameters.csv"
-$templateUri = "https://github.com/MSELC/azure-templates/VM-PaloAlto/template.json"
+$templateUri = "https://raw.githubusercontent.com/MSELC/azure-templates/master/VM-PaloAlto/template.json"
 $adminPassword = Read-Host "Enter local admin password" -AsSecureString
 
 Import-Module AzureRM
