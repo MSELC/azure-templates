@@ -1,0 +1,324 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.13",
+  "parameters": {
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "The region to deploy the resources into"
+      }
+    },
+    "vmName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of VM-Series VM in the Azure portal"
+      },
+      "defaultValue": "VM-Series"
+    },
+    "vmSize": {
+      "type": "string",
+      "allowedValues": [
+        "Standard_D3",
+        "Standard_D4",
+        "Standard_D3_v2",
+        "Standard_D4_v2",
+        "Standard_D3_v2_Promo",
+        "Standard_D4_v2_Promo",
+        "Standard_DS3_v2",
+        "Standard_DS4_v2",
+        "Standard_DS3_v2_Promo",
+        "Standard_DS4_v2_Promo",
+        "Standard_A4"
+      ],
+      "metadata": {
+        "description": "Azure VM size for VM-Series"
+      },
+      "defaultValue": "Standard_D3_v2_Promo"
+    },
+    "virtualNetworkName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Virtual Network (VNET)"
+      },
+      "defaultValue": "fwVNET"
+    },
+    "virtualNetworkExistingRGName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Name of resource group of existing VNET (if applicable)"
+      }
+    },
+    "subnet0Name": {
+      "type": "string",
+      "defaultValue": "Mgmt",
+      "metadata": {
+        "description": "Subnet for Management"
+      }
+    },
+    "subnet1Name": {
+      "type": "string",
+      "defaultValue": "Untrust",
+      "metadata": {
+        "description": "Subnet for Untrust"
+      }
+    },
+    "subnet2Name": {
+      "type": "string",
+      "defaultValue": "Trust",
+      "metadata": {
+        "description": "Subnet for Trust"
+      }
+    },
+    "nic0IPAddress": {
+      "type": "string",
+      "metadata": {
+        "description": "Static IP Address for NIC 0"
+      }
+    },
+    "nic1IPAddress": {
+      "type": "string",
+      "metadata": {
+        "description": "Static IP Address for NIC 1"
+      }
+    },
+    "nic2IPAddress": {
+      "type": "string",
+      "metadata": {
+        "description": "Static IP Address for NIC 2"
+      }
+    },
+    "adminUsername": {
+      "type": "string",
+      "metadata": {
+        "description": "Username of the administrator account of VM-Series"
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Password for the administrator account of VM-Series"
+      }
+    },
+    "baseUrl": {
+      "type": "string",
+      "metadata": {
+        "artifactsBaseUrl": "",
+        "description": "URL to acquire other VM-Series for Azure templates"
+      },
+      "defaultValue": "https://gallery.azure.com/artifact/20151001/paloaltonetworks.vmseries-ngfwbundle1.1.0.2/Artifacts"
+    },
+    "diskType": {
+      "type": "string",
+      "metadata": {
+        "description": "Unmanaged or managed disk type"
+      },
+      "allowedValues": [
+        "unmanaged",
+        "managed"
+      ],
+      "defaultValue": "unmanaged"
+    },
+    "storageAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name prefix of the new storage account created for unmanaged VM disks"
+      }
+    },
+    "managedDiskStorageType": {
+      "type": "string",
+      "metadata": {
+        "description": "Standard or Premium storage for managed disk types"
+      },
+      "allowedValues": [
+        "Standard_LRS",
+        "Premium_LRS"
+      ],
+      "defaultValue": "Standard_LRS"
+    },
+    "authenticationType": {
+      "type": "string",
+      "metadata": {
+        "descritpion": "Type of administrator user authentication "
+      },
+      "allowedValues": [
+        "sshPublicKey",
+        "password"
+      ],
+      "defaultValue": "password"
+    },
+    "sshKey": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "SSH rsa public key file as a string."
+      }
+    },
+    "availabilitySetName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of Availability Set"
+      }
+    },
+    "availabilitySetSku": {
+      "type": "string",
+      "metadata": {
+        "description": "Classic or Managed (Aligned) Availability Set for Managed Disk support"
+      },
+      "allowedValues": [
+        "Classic",
+        "Aligned"
+      ],
+      "defaultValue": "Classic"
+    }
+  },
+  "variables": {
+    "imagePublisher": "paloaltonetworks",
+    "imageSku": "byol",
+    "imageOffer": "vmseries1",
+    "nicName": "[concat('NIC-',parameters('vmName'), '-')]",
+    "managedDiskName": "[concat('Disk-',parameters('vmName'), '-')]",
+    "vnetID": "[resourceId(parameters('virtualNetworkExistingRGName'),concat('Microsoft.Network','/','virtualNetworks'),parameters('virtualNetworkName'))]",
+    "setupNICsURL": "[concat(parameters('baseUrl'),'/setupNICS-existing.json')]",
+    "setupAvailSetURL": "[concat(parameters('baseUrl'),'/availabilitySet-new.json')]",
+    "vmTemplateUrl": "[concat(parameters('baseUrl'), '/virtual-machine-', parameters('diskType'), '-', parameters('authenticationType'),'.json')]",
+    "faultDomainCount": "3",
+    "updateDomainCount": "20"
+  },
+  "resources": [
+    {
+      "name": "SetupNetworkInterfaces",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2015-01-01",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('setupNICsURL')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "nicName": {
+            "value": "[variables('nicName')]"
+          },
+          "subnet0Name": {
+            "value": "[parameters('subnet0Name')]"
+          },
+          "subnet1Name": {
+            "value": "[parameters('subnet1Name')]"
+          },
+          "subnet2Name": {
+            "value": "[parameters('subnet2Name')]"
+          },
+          "nic0IPAddress": {
+            "value": "[parameters('nic0IPAddress')]"
+          },
+          "nic1IPAddress": {
+            "value": "[parameters('nic1IPAddress')]"
+          },
+          "nic2IPAddress": {
+            "value": "[parameters('nic2IPAddress')]"
+          },
+          "virtualNetworkName": {
+            "value": "[parameters('virtualNetworkName')]"
+          },
+          "virtualNetworkExistingRGName": {
+            "value": "[parameters('virtualNetworkExistingRGName')]"
+          }
+        }
+      }
+    },
+    {
+      "name": "SetupAvailabilitySet",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2015-01-01",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('setupAvailSetURL')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "availabilitySetName": {
+            "value": "[parameters('availabilitySetName')]"
+          },
+          "faultDomainCount": {
+            "value": "[variables('faultDomainCount')]"
+          },
+          "updateDomainCount": {
+            "value": "[variables('updateDomainCount')]"
+          },
+          "availabilitySetSku": {
+            "value": "[parameters('availabilitySetSku')]"
+          }
+        }
+      }
+    },
+    {
+      "name": "PAN-VM",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2015-01-01",
+      "dependsOn": [
+        "Microsoft.Resources/deployments/SetupNetworkInterfaces",
+        "Microsoft.Resources/deployments/SetupAvailabilitySet"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('vmTemplateUrl')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "vmName": {
+            "value": "[parameters('vmName')]"
+          },
+          "imageSku": {
+            "value": "[variables('imageSku')]"
+          },
+          "imageOffer": {
+            "value": "[variables('imageOffer')]"
+          },
+          "imagePublisher": {
+            "value": "[variables('imagePublisher')]"
+          },
+          "nicName": {
+            "value": "[variables('nicName')]"
+          },
+          "vmSize": {
+            "value": "[parameters('vmSize')]"
+          },
+          "adminUsername": {
+            "value": "[parameters('adminUsername')]"
+          },
+          "adminPassword": {
+            "value": "[parameters('adminPassword')]"
+          },
+          "storageAccountName": {
+            "value": "[parameters('storageAccountName')]"
+          },
+          "managedDiskName": {
+            "value": "[variables('managedDiskName')]"
+          },
+          "managedDiskStorageType": {
+            "value": "[parameters('managedDiskStorageType')]"
+          },
+          "sshKey": {
+            "value": "[parameters('sshKey')]"
+          },
+          "availabilitySetName": {
+            "value": "[parameters('availabilitySetName')]"
+          }
+        }
+      }
+    }
+  ]
+}
