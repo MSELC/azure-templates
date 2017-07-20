@@ -9,13 +9,23 @@
       "type": "string"
     },
     "faultDomainCount": {
-      "type": "string"
+      "type": "string",
+      "defaultValue": "3"
     },
     "updateDomainCount": {
-      "type": "string"
+      "type": "string",
+      "defaultValue": "20"
     },
     "availabilitySetSku": {
-      "type": "string"
+      "type": "string",
+      "metadata": {
+        "description": "Classic or Managed (Aligned) Availability Set for Managed Disk support"
+      },
+      "allowedValues": [
+        "Classic",
+        "Aligned"
+      ],
+      "defaultValue": "Aligned"
     }
   },
   "resources": [
